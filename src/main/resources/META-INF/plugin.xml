@@ -1,0 +1,116 @@
+<!-- Installed or updated, this plugin needs the IDE restarted. It holds project services
+     with coroutine scopes, listeners on the file editor and highlighters in open editors,
+     none of which survive being swapped under a running project: a swap leaves the old
+     classloader's services alive against classes the new descriptor no longer resolves,
+     the listeners silently stop firing, and nothing is marked. -->
+<idea-plugin require-restart="true">
+    <id>org.key_project.ide.idea</id>
+    <name>KeY</name>
+    <vendor url="https://key-project.org">KeY Project</vendor>
+
+    <description><![CDATA[
+        Verify methods of your Java project with the KeY theorem prover.
+        <p>
+        Select a method, a class or a directory anywhere &mdash; the editor, the project
+        view, the gutter, or the KeY tool window &mdash; and choose
+        <em>Verify Proof Obligations</em>. KeY proves in the background, with a progress
+        bar you can stop, and writes the proofs to disk. The tool window lists what the
+        project can be asked to prove and what each attempt came to, and a saved proof can
+        be replayed, removed, or opened in a KeY window to look at.
+        <p>
+        KeY is not bundled: point the plugin at your own installation in Settings, Tools,
+        KeY.
+        ]]></description>
+
+    <!-- Platform only: the caret position is sent as a position, so no Java model is
+         needed here and the plugin works in every IDE built on the platform. -->
+    <depends>com.intellij.modules.platform</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <applicationService serviceImplementation="org.key_project.ide.intellij.KeySettings"/>
+        <!-- One group under Tools: the machine's KeY, then the project's pages under it. -->
+        <applicationConfigurable
+            parentId="tools"
+            instance="org.key_project.ide.intellij.KeySettingsConfigurable"
+            id="org.key_project.ide.intellij.settings"
+            displayName="KeY"/>
+        <projectConfigurable
+            parentId="org.key_project.ide.intellij.settings"
+            instance="org.key_project.ide.intellij.KeyContextsConfigurable"
+            id="org.key_project.ide.intellij.contexts"
+            displayName="Contexts"/>
+        <projectConfigurable
+            parentId="org.key_project.ide.intellij.settings"
+            instance="org.key_project.ide.intellij.KeyOptionsConfigurable"
+            id="org.key_project.ide.intellij.options"
+            displayName="Proof Options"/>
+        <!-- At the bottom, where a window this wide belongs: the verification table has six
+             columns, and the same table sits in the bottom panel in the other editor. -->
+        <toolWindow id="KeY"
+                    anchor="bottom"
+                    factoryClass="org.key_project.ide.intellij.KeyToolWindowFactory"/>
+        <notificationGroup id="KeY" displayType="BALLOON"/>
+        <!-- The stripe is drawn before the tool window's factory ever runs, so the logo is
+             put on it when the project opens rather than when the window is first opened. -->
+        <postStartupActivity implementation="org.key_project.ide.intellij.ShowKeyLogo"/>
+    </extensions>
+
+    <projectListeners>
+        <listener class="org.key_project.ide.intellij.MarkOpenFiles"
+                  topic="com.intellij.openapi.fileEditor.FileEditorManagerListener"/>
+        <listener class="org.key_project.ide.intellij.EmptyTrashOnClose"
+                  topic="com.intellij.openapi.project.ProjectManagerListener"/>
+        <listener class="org.key_project.ide.intellij.RedrawOnThemeChange"
+                  topic="com.intellij.ide.ui.LafManagerListener"/>
+    </projectListeners>
+
+    <actions>
+        <!-- One set of actions, offered wherever a selection can be made. What a selection
+             means is worked out in one place, so no view registers actions of its own. -->
+        <action id="org.key_project.ide.intellij.Verify"
+                class="org.key_project.ide.intellij.VerifyAction"
+                text="Verify Proof Obligations"
+                description="Prove what the selection specifies, without opening KeY">
+            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+            <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
+            <keyboard-shortcut keymap="$default" first-keystroke="control shift K"/>
+        </action>
+        <group id="org.key_project.ide.intellij.KeyGroup" text="KeY" popup="true">
+            <reference ref="org.key_project.ide.intellij.Verify"/>
+            <action id="org.key_project.ide.intellij.Replay"
+                    class="org.key_project.ide.intellij.ReplayAction"
+                    text="Replay Saved Proofs"
+                    description="Read the saved proofs back and report what they are"/>
+            <action id="org.key_project.ide.intellij.RemoveProof"
+                    class="org.key_project.ide.intellij.RemoveProofAction"
+                    text="Remove Saved Proofs"
+                    description="Delete the saved proofs of the selection"/>
+            <action id="org.key_project.ide.intellij.OpenProof"
+                    class="org.key_project.ide.intellij.OpenProofAction"
+                    text="Open Proof in KeY"
+                    description="Open the selected proof in a KeY window"/>
+            <separator/>
+            <action id="org.key_project.ide.intellij.ShowDependencies"
+                    class="org.key_project.ide.intellij.ShowDependenciesAction"
+                    text="Show Dependencies"
+                    description="Show what this proof rests on, as KeY reported it"/>
+            <action id="org.key_project.ide.intellij.VerifyDependencies"
+                    class="org.key_project.ide.intellij.VerifyDependenciesAction"
+                    text="Verify Dependencies"
+                    description="Prove what this proof rests on and is not closed"/>
+            <separator/>
+            <action id="org.key_project.ide.intellij.Options"
+                    class="org.key_project.ide.intellij.OptionsAction"
+                    text="Proof Options…"
+                    description="Set the taclet and strategy options the selection is proved with"/>
+            <action id="org.key_project.ide.intellij.GoToSource"
+                    class="org.key_project.ide.intellij.GoToSourceAction"
+                    text="Go to Source"
+                    description="Open the class the obligation comes from, at its declaration">
+                <keyboard-shortcut keymap="$default" first-keystroke="control shift G"/>
+            </action>
+            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+            <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
+        </group>
+    </actions>
+</idea-plugin>
